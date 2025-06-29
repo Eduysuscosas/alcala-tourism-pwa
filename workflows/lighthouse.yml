@@ -1,0 +1,37 @@
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [ main ]
+  workflow_run:
+    workflows: ["Deploy to GitHub Pages"]
+    types:
+      - completed
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for deployment to be ready
+        run: sleep 60
+
+      - name: Run Lighthouse CI
+        id: lighthouse
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          urls: |
+            https://${{ github.repository_owner }}.github.io/alcala-tourism-pwa/
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Create summary
+        run: |
+          echo "### Lighthouse Results" >> $GITHUB_STEP_SUMMARY
+          echo "PWA Score: $(jq '.audits."pwa-installable".score' ${{ steps.lighthouse.outputs.manifest }})*100 | bc -l | xargs printf "%.0f")%" >> $GITHUB_STEP_SUMMARY
+          echo "Performance: $(jq '.categories.performance.score' ${{ steps.lighthouse.outputs.manifest }})*100 | bc -l | xargs printf "%.0f")%" >> $GITHUB_STEP_SUMMARY
+          echo "Accessibility: $(jq '.categories.accessibility.score' ${{ steps.lighthouse.outputs.manifest }})*100 | bc -l | xargs printf "%.0f")%" >> $GITHUB_STEP_SUMMARY
+          echo "Best Practices: $(jq '.categories["best-practices"].score' ${{ steps.lighthouse.outputs.manifest }})*100 | bc -l | xargs printf "%.0f")%" >> $GITHUB_STEP_SUMMARY
+          echo "SEO: $(jq '.categories.seo.score' ${{ steps.lighthouse.outputs.manifest }})*100 | bc -l | xargs printf "%.0f")%" >> $GITHUB_STEP_SUMMARY
+          echo "Full Report: ${{ steps.lighthouse.outputs.links }}" >> $GITHUB_STEP_SUMMARY
